@@ -70,6 +70,12 @@ def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
         select_target = target.squeeze(2).gather(1, select_idx.view(-1,1))
         batch_score = torch.sum(select_target>0.5).item()
 
+    elif task_cfg[task_id]['type'] == 'L-pred':
+        loss = task_losses[task_id](linguisic_prediction, target)
+        loss = loss.mean()
+        _, select_idx = torch.max(linguisic_prediction, dim=1)
+        batch_score = float((preds == target).sum()) / float(batch_size)
+
     return float(loss), float(batch_score), batch_size
 
 def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_train, task_dataloader_train, model, task_losses, task_start_iter):
@@ -86,7 +92,7 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
     features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
 
-    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7']:
+    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK12']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -131,6 +137,12 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         _, select_idx = torch.max(vision_logit, dim=1)
         select_target = target.squeeze(2).gather(1, select_idx.view(-1,1))
         batch_score = float(torch.sum(select_target>0.5)) / batch_size
+    elif task_cfg[task_id]['type'] == 'L-pred':
+        # TODO Mask out obj
+        loss = task_losses[task_id](linguisic_prediction, target)
+        loss = loss.mean()
+        _, select_idx = torch.max(linguisic_prediction, dim=1)
+        batch_score = float((preds == target).sum()) / float(batch_size)
 
     return loss, batch_score
 

@@ -54,7 +54,7 @@ TASK3:
   name: RetrievalFlickr30k
   type: VL-logit
   loss: CrossEntropyLoss
-  task_id: 9
+  task_id: 9 
   dataroot: data/flickr30k
   features_h5path1: data/flickr30k/flickr30k_test_resnet101_faster_rcnn_genome.lmdb
   features_h5path2: ''
@@ -84,4 +84,21 @@ TASK4:
   train_split: train
   val_split: val
   lr: 0.00004
-  num_epoch: 20
+ TASK5:
+  name: VGenomeSceneGraph
+  type: L-pred
+  loss: CrossEntropyLoss
+  task_id: 12
+  dataroot: data/VGSG
+  features_h5path1: VG.lmdb
+  features_h5path2: VG_gt.lmdb
+  train_annotations_jsonpath: ''
+  val_annotations_jsonpath: ''
+  max_seq_length: 20
+  max_region_num: 100
+  batch_size: 256
+  eval_batch_size: 1024
+  train_split: train
+  val_split: val
+  lr: 0.00004
+  num_epoch: 20 num_epoch: 20

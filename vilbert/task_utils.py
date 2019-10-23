@@ -92,7 +92,7 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
     features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
 
-    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK12']:
+    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -103,7 +103,7 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         segment_ids = segment_ids.view(-1, segment_ids.size(2))
         co_attention_mask = co_attention_mask.view(-1, co_attention_mask.size(2), co_attention_mask.size(3))
 
-    elif task_id in ['TASK8', 'TASK9']:
+    elif task_id in ['TASK8', 'TASK9','TASK12']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.view(-1, features.size(2), features.size(3))
@@ -139,9 +139,14 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         batch_score = float(torch.sum(select_target>0.5)) / batch_size
     elif task_cfg[task_id]['type'] == 'L-pred':
         # TODO Mask out obj
+        # linguisic_prediction = linguisic_prediction.view(batch_size,-1)
+        # print(linguisic_prediction.size())
+        # print(target.size())
+        linguisic_prediction = linguisic_prediction.squeeze(1)
+        target = target.view(-1)
         loss = task_losses[task_id](linguisic_prediction, target)
         loss = loss.mean()
-        _, select_idx = torch.max(linguisic_prediction, dim=1)
+        _, preds = torch.max(linguisic_prediction, dim=1)
         batch_score = float((preds == target).sum()) / float(batch_size)
 
     return loss, batch_score

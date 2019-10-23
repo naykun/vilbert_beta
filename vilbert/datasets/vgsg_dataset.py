@@ -36,15 +36,22 @@ def _converId(img_id):
 def _load_annotationsVGSG_R(annotations_jsonpath, split):
     entries = []
     with open(annotations_jsonpath, 'r') as f:
-        for scene_graph in json.load(f):
+        scene_graphs = json.load(f)
+        if split=='train':
+            scene_graphs = scene_graphs[:int(0.9*len(scene_graphs))]
+        elif split=='val':
+            scene_graphs = scene_graphs[int(0.9*len(scene_graphs)):]
+        for scene_graph in scene_graphs:
             if split == 'test':
                 pass
             else:
                 objects = scene_graph['objects']
-                objects2name = {x['object_id']:(x['name'], x['synsets']) for x in objects}
+                if len(objects)==0:
+                    continue
+                objects2name = {x['object_id']:(x['names'][0], x['synsets'][0] if len(x['synsets'])>0 else -1) for x in objects}
                 object_list = list(objects2name.values())
                 relationships = scene_graph['relationships']
-                relation_tuples = [(objects2name[x["subject_id"]], (x['predicate'], x['synsets']), objects2name[x["object_id"]]) for x in relationships]
+                relation_tuples = [(objects2name[x["subject_id"]], (x['predicate'], x['synsets'][0] if len(x['synsets'])>0 else -1), objects2name[x["object_id"]]) for x in relationships]
                 num_obj = len(objects)
                 num_rel = len(relation_tuples)
                 entries.append(
@@ -53,7 +60,7 @@ def _load_annotationsVGSG_R(annotations_jsonpath, split):
 
     return entries
 
-class VCRDataset(Dataset):
+class VGSGDataset(Dataset):
     def __init__(
         self,
         task: str,
@@ -68,7 +75,7 @@ class VCRDataset(Dataset):
         max_region_num: int = 60
     ):
         # All the keys in `self._entries` would be present in `self._image_features_reader`
-        if task == 'VGSG-R':
+        if task == 'VGenomeSceneGraph':
             self._entries = _load_annotationsVGSG_R(annotations_jsonpath, split)
         else:
             assert False
@@ -78,7 +85,7 @@ class VCRDataset(Dataset):
         self._tokenizer = tokenizer
 
         self._padding_index = padding_index
-        self._max_caption_length = max_seq_length
+        self._max_seq_length = max_seq_length
         self._max_region_num = max_region_num
         self.num_labels = 1
 
@@ -106,23 +113,27 @@ class VCRDataset(Dataset):
             token_pairs = []
             for relation in entry['relations']:
                 assert len(relation) == 3
-                token_pairs.append((relation[0][0],relation[1],relation[2][0]))
+                token_pairs.append((relation[0][0],relation[1][0],relation[2][0]))
 
             num_rels = len(entry['relations'])
-            num_random_rels = (self._max_caption_length - 2) // 3 - num_rels
+            num_random_rels = (self._max_seq_length - 2) // 3 - num_rels
 
-            gt_pairs = {(rel[0],rel[1]) for rel in entry['relations']}
-            random_pairs = self._get_random_pair(entry['objects'], gt_pairs, num_random_rels)
+            if num_random_rels>0:
+                gt_pairs = {(rel[0],rel[2]) for rel in entry['relations']}
+                random_pairs = self._get_random_pair(entry['objects'], gt_pairs, num_random_rels)
+                for pair in list(random_pairs):
+                    token_pairs.append((pair[0][0],'background', pair[1][0]))
+            else:
+                for i in range(-num_random_rels):
+                    token_pairs.pop()
 
-            for pair in list(random_pairs):
-                token_pairs.append((pair[0][0],'background', pair[1][0]))
-            
-            token_pairs = random.shuffle(token_pairs)
+            random.shuffle(token_pairs)
             tokens = []
             for pair in token_pairs:
                 tokens.extend(pair)
 
             tokens = ['<CLS>'] + tokens + ['<SEP>']
+            print(tokens)
             target = [self._tokenizer.vocab.get(x, self._tokenizer.vocab['[UNK]']) for x in tokens]
             tokens = [self._tokenizer.vocab.get(x, self._tokenizer.vocab['[UNK]']) if i%3!=2 else self._tokenizer.vocab.get('[MASK]', self._tokenizer.vocab['[UNK]']) for i, x in enumerate(tokens)]
 
@@ -139,12 +150,13 @@ class VCRDataset(Dataset):
                 padding = [self._padding_index] * (self._max_seq_length - len(tokens))
                 tokens = tokens + padding
                 input_mask += padding
-                segment_ids += padding   
+                segment_ids += padding 
+                target += padding  
 
             assert_eq(len(tokens), self._max_seq_length)
             entry['input_ids'] = tokens 
             entry["input_mask"] = input_mask
-            entry['segment_id'] = segment_ids
+            entry['segment_ids'] = segment_ids
             # entry["co_attention_mask"] = co_attention_mask
             entry['target'] = target
 
@@ -175,7 +187,7 @@ class VCRDataset(Dataset):
                 candidate_pair_set.add((object_list[i], object_list[j]))
                 candidate_pair_set.add((object_list[j], object_list[i]))
         candidate_pair_set = candidate_pair_set - gt_pairs
-        return random.choices(candidate_pair_set,k=num_pairs)
+        return random.choices(list(candidate_pair_set),k=min(num_pairs, len(candidate_pair_set)))
 
     def __getitem__(self, index):
         
@@ -229,7 +241,11 @@ class VCRDataset(Dataset):
         input_ids = entry["input_ids"]
         input_mask = entry["input_mask"]
         segment_ids = entry["segment_ids"]
-        target = int(entry["target"])
+        target = entry["target"]
+
+        assert_eq(len(input_ids),len(input_mask))
+        assert_eq(len(input_mask),len(segment_ids))
+        assert_eq(len(segment_ids),len(target))
 
         if self._split == 'test':
             # anno_id = entry["anno_id"]
@@ -237,8 +253,10 @@ class VCRDataset(Dataset):
         else:
             anno_id = entry["image_id"]
 
-        co_attention_mask = torch.zeros((self._max_region_num, self._max_seq_length))
-        
+        co_attention_mask = torch.zeros((1, self._max_region_num, self._max_seq_length))
+        input_ids = input_ids.unsqueeze(1)
+        input_mask = input_mask.unsqueeze(1)
+        segment_ids = segment_ids.unsqueeze(1)
         return features, spatials, image_mask, input_ids, target, input_mask, segment_ids, co_attention_mask, anno_id
 
     def __len__(self):

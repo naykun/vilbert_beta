@@ -1,2 +1,8 @@
 *.lmdb/
 .vscode/
+save/*
+*.pyc
+VG*/
+events.*
+*.pkl
+scene_graphs.json

@@ -54,8 +54,13 @@ def _load_annotationsVGSG_R(annotations_jsonpath, split):
                 relation_tuples = [(objects2name[x["subject_id"]], (x['predicate'], x['synsets'][0] if len(x['synsets'])>0 else -1), objects2name[x["object_id"]]) for x in relationships]
                 num_obj = len(objects)
                 num_rel = len(relation_tuples)
+                # filter out phrase relation
+                filtered_relation_tuples = [] 
+                for rel in relation_tuples:
+                    if len(rel[1][0].split())==1 and len(rel[0][0].split())==1 and len(rel[2][0].split())==1:
+                        filtered_relation_tuples.append(rel)
                 entries.append(
-                    {"image_id":scene_graph['image_id'], 'relations': relation_tuples, 'objects': object_list}
+                    {"image_id":scene_graph['image_id'], 'relations': filtered_relation_tuples, 'objects': object_list}
                 )
 
     return entries
@@ -119,10 +124,11 @@ class VGSGDataset(Dataset):
             num_random_rels = (self._max_seq_length - 2) // 3 - num_rels
 
             if num_random_rels>0:
-                gt_pairs = {(rel[0],rel[2]) for rel in entry['relations']}
-                random_pairs = self._get_random_pair(entry['objects'], gt_pairs, num_random_rels)
-                for pair in list(random_pairs):
-                    token_pairs.append((pair[0][0],'background', pair[1][0]))
+                pass
+                # gt_pairs = {(rel[0],rel[2]) for rel in entry['relations']}
+                # random_pairs = self._get_random_pair(entry['objects'], gt_pairs, num_random_rels)
+                # for pair in list(random_pairs):
+                #     token_pairs.append((pair[0][0],'background', pair[1][0]))
             else:
                 for i in range(-num_random_rels):
                     token_pairs.pop()
@@ -132,11 +138,15 @@ class VGSGDataset(Dataset):
             for pair in token_pairs:
                 tokens.extend(pair)
 
-            tokens = ['<CLS>'] + tokens + ['<SEP>']
-            print(tokens)
-            target = [self._tokenizer.vocab.get(x, self._tokenizer.vocab['[UNK]']) for x in tokens]
-            tokens = [self._tokenizer.vocab.get(x, self._tokenizer.vocab['[UNK]']) if i%3!=2 else self._tokenizer.vocab.get('[MASK]', self._tokenizer.vocab['[UNK]']) for i, x in enumerate(tokens)]
+            tokens = ['[CLS]'] + tokens + ['[SEP]']
+            tokens_char = tokens
 
+            target = [self._tokenizer.vocab.get(self._tokenizer.tokenize(x)[0], self._tokenizer.vocab['[UNK]']) if i%3==2 else -1 for i, x in enumerate(tokens)]
+            tokens = [self._tokenizer.vocab.get(self._tokenizer.tokenize(x)[0], self._tokenizer.vocab['[UNK]']) if i%3!=2 else self._tokenizer.vocab.get('[MASK]', self._tokenizer.vocab['[UNK]']) for i, x in enumerate(tokens)]
+            
+            for i in range(len(tokens)):
+                if target[i] != -1:
+                    print(tokens_char[i],tokens[i],target[i])
 
             segment_ids = [0] * len(tokens)
             input_mask = [1] * len(tokens)
@@ -151,7 +161,7 @@ class VGSGDataset(Dataset):
                 tokens = tokens + padding
                 input_mask += padding
                 segment_ids += padding 
-                target += padding  
+                target += [-1] * len(padding)  
 
             assert_eq(len(tokens), self._max_seq_length)
             entry['input_ids'] = tokens 
@@ -261,3 +271,6 @@ class VGSGDataset(Dataset):
 
     def __len__(self):
         return len(self._entries)
+
+    def get_tokenizer(self):
+        return self._tokenizer

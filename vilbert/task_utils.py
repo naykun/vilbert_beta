@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 LossMap = {'BCEWithLogitLoss': nn.BCEWithLogitsLoss(reduction='mean'),
            'CrossEntropyLoss': nn.CrossEntropyLoss(),
+           'CrossEntropyLoss_ign': nn.CrossEntropyLoss(ignore_index=-1)
             }
 
 def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses):
@@ -71,9 +72,18 @@ def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
         batch_score = torch.sum(select_target>0.5).item()
 
     elif task_cfg[task_id]['type'] == 'L-pred':
+        # loss = task_losses[task_id](linguisic_prediction, target)
+        # loss = loss.mean()
+        # _, select_idx = torch.max(linguisic_prediction, dim=1)
+        # batch_score = float((preds == target).sum()) / float(batch_size)
+        # print(linguisic_prediction.size())
+        # print(target.size())
+        # print(question.size())
+        linguisic_prediction = linguisic_prediction.squeeze(1)
+        target = target.view(-1)
         loss = task_losses[task_id](linguisic_prediction, target)
         loss = loss.mean()
-        _, select_idx = torch.max(linguisic_prediction, dim=1)
+        _, preds = torch.max(linguisic_prediction, dim=1)
         batch_score = float((preds == target).sum()) / float(batch_size)
 
     return float(loss), float(batch_score), batch_size
@@ -142,8 +152,10 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         # linguisic_prediction = linguisic_prediction.view(batch_size,-1)
         # print(linguisic_prediction.size())
         # print(target.size())
+        # print(question.size())
         linguisic_prediction = linguisic_prediction.squeeze(1)
         target = target.view(-1)
+        
         loss = task_losses[task_id](linguisic_prediction, target)
         loss = loss.mean()
         _, preds = torch.max(linguisic_prediction, dim=1)
@@ -353,12 +365,12 @@ def compute_score_with_logits(logits, labels):
     scores = one_hots * labels
     return scores
 
-def EvaluatingModel(args, task_cfg, device, task_id, batch, model, task_dataloader, task_losses, results, others):
+def EvaluatingModel(args,tokenizer, task_cfg, device, task_id, batch, model, task_dataloader, task_losses, results, others):
     batch = tuple(t.cuda(device=device, non_blocking=True) for t in batch)
     features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
 
-    if task_id in ['TASK0', 'TASK1', 'TASK2']:
+    if task_id in ['TASK0', 'TASK1', 'TASK2','TASK5']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -419,5 +431,27 @@ def EvaluatingModel(args, task_cfg, device, task_id, batch, model, task_dataload
 
         for i in range(select_idx.size(0)):
             results.append({'id':question_id[i].item(), 'target':select_idx[i].item(), 'IOU': select_target[i].item()})
+
+    elif task_cfg[task_id]['type'] == 'L-pred':
+        # TODO Mask out obj
+        # linguisic_prediction = linguisic_prediction.view(batch_size,-1)
+        # print(linguisic_prediction.size())
+        # print(target.size())
+        # print(question.size())
+        linguisic_prediction = linguisic_prediction.squeeze(1)
+        target = target.view(-1)
+        
+        loss = task_losses[task_id](linguisic_prediction, target)
+        loss = loss.mean()
+        _, preds = torch.max(linguisic_prediction, dim=1)
+        batch_score = float((preds == target).sum()) / float(batch_size)
+
+        print(linguisic_prediction.size())
+        print(target.size())
+        preds_token = tokenizer.convert_ids_to_tokens(preds.tolist())
+        target = target.tolist()
+        target = [x if x!=-1 else tokenizer.vocab["[MASK]"] for x in target]
+        target_token = tokenizer.convert_ids_to_tokens(target)
+        results.append({'prediction':preds_token, 'target':target_token})
 
     return float(loss), float(batch_score), batch_size, results, others

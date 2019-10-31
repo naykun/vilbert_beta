@@ -96,7 +96,7 @@ def main():
         help="save name for training.", 
     )
     parser.add_argument(
-        "--batch_size", default=1000, type=int, help="what is the batch size?"
+        "--batch_size", default=4, type=int, help="what is the batch size?"
     )
     parser.add_argument(
         "--tasks", default='', type=str, help="1-2-3... training task separate by -"
@@ -204,8 +204,11 @@ def main():
     for task_id in task_ids:
         results = []
         others = []
+        iterlength = len(task_dataloader_val[task_id])
         for i, batch in enumerate(task_dataloader_val[task_id]):
-            loss, score, batch_size, results, others = EvaluatingModel(args, task_cfg, device, \
+            if i==iterlength - 1:
+                continue
+            loss, score, batch_size, results, others = EvaluatingModel(args,task_dataloader_val[task_id].dataset.get_tokenizer(),task_cfg, device, \
                     task_id, batch, model, task_dataloader_val, task_losses, results, others)
 
             tbLogger.step_val(0, float(loss), float(score), task_id, batch_size, 'val')

@@ -4,6 +4,7 @@ from .refer_expression_dataset import ReferExpressionDataset
 from .retreival_dataset import RetreivalDataset, RetreivalDatasetVal
 from .vcr_dataset import VCRDataset
 from .vgsg_dataset import VGSGDataset
+from .vgsg_novision_dataset import VGSGNoVisDataset
 
 
 
@@ -17,8 +18,9 @@ __all__ = [
 		   "RetreivalDataset", \
 		   "RetreivalDatasetVal",\
 		   "VCRDataset", \
-		   "ConceptCapLoaderRetrieval"\
-		   "VGSGDataset"]
+		   "ConceptCapLoaderRetrieval",\
+		   "VGSGDataset",\
+			"VGSGNoVisDataset"]
 
 DatasetMapTrain = {
 				   'TASK0': VQAClassificationDataset,
@@ -27,6 +29,7 @@ DatasetMapTrain = {
 				   'TASK3': RetreivalDataset,
 				   'TASK4': ReferExpressionDataset,
 				   'TASK5': VGSGDataset,
+				   'TASK6': VGSGNoVisDataset,
 				   }		
 
 DatasetMapEval = {
@@ -35,5 +38,6 @@ DatasetMapEval = {
 				 'TASK2': VCRDataset,				   
 				 'TASK3': RetreivalDatasetVal,
 				 'TASK4': ReferExpressionDataset,
-				 'TASK5': VGSGDataset,			   
+				 'TASK5': VGSGDataset,
+				 'TASK6': VGSGNoVisDataset,			   
 				}

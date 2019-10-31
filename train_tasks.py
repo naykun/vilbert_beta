@@ -396,10 +396,26 @@ def main():
             if step % (20 * args.gradient_accumulation_steps) == 0 and step != 0 and default_gpu:
                 tbLogger.showLossTrain()
 
+        if default_gpu:
+            # Save a trained model
+            logger.info("** ** * Saving fine - tuned model on " + timeStamp + "** ** * ")
+            model_to_save = (
+                model.module if hasattr(model, "module") else model
+            )  # Only save the model it-self
+
+            if not os.path.exists(savePath):
+                os.makedirs(savePath)
+            output_model_file = os.path.join(savePath, "pytorch_model_" + str(epochId) + ".bin")
+            torch.save(model_to_save.state_dict(), output_model_file)
+
+
         model.eval()
         # when run evaluate, we run each task sequentially. 
         for task_id in task_ids:
+            iter_num = len(task_dataloader_val[task_id])
             for i, batch in enumerate(task_dataloader_val[task_id]):
+                if i==iter_num-1:
+                    continue
                 loss, score, batch_size = ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
                 tbLogger.step_val(epochId, float(loss), float(score), task_id, batch_size, 'val')
                 if default_gpu:
@@ -412,18 +428,6 @@ def main():
             logger.info("best average score is %3f" %lr_scheduler.best)
         else:
             lr_scheduler.step()
-
-        if default_gpu:
-            # Save a trained model
-            logger.info("** ** * Saving fine - tuned model on " + timeStamp + "** ** * ")
-            model_to_save = (
-                model.module if hasattr(model, "module") else model
-            )  # Only save the model it-self
-
-            if not os.path.exists(savePath):
-                os.makedirs(savePath)
-            output_model_file = os.path.join(savePath, "pytorch_model_" + str(epochId) + ".bin")
-            torch.save(model_to_save.state_dict(), output_model_file)
 
     tbLogger.txt_close()
     

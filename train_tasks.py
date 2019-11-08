@@ -29,6 +29,7 @@ from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau
 import vilbert.utils as utils
 import torch.distributed as dist
 
+
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
     datefmt="%m/%d/%Y %H:%M:%S",
@@ -259,7 +260,7 @@ def main():
             args.from_pretrained, config, num_labels=num_labels, default_gpu=default_gpu
             )
 
-    task_losses = LoadLosses(args, task_cfg, args.tasks.split('-'))
+    task_losses = LoadLosses(args, task_cfg, args.tasks.split('-'), device)
     model.to(device)
     if args.local_rank != -1:
         try:

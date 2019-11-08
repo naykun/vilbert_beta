@@ -6,3 +6,4 @@ VG*/
 events.*
 *.pkl
 scene_graphs.json
+data/*

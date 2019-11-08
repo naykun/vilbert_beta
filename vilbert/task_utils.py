@@ -14,20 +14,18 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from vilbert.datasets import DatasetMapTrain, DatasetMapEval
 from vilbert.datasets._image_features_reader import ImageFeaturesH5Reader
 import pdb
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
-LossMap = {'BCEWithLogitLoss': nn.BCEWithLogitsLoss(reduction='mean'),
-           'CrossEntropyLoss': nn.CrossEntropyLoss(),
-           'CrossEntropyLoss_ign': nn.CrossEntropyLoss(ignore_index=-1)
-            }
+
 
 def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses):
     batch = tuple(t.cuda(device=device, non_blocking=True) for t in batch)
     features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
 
-    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7']:
+    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK8',]:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -38,7 +36,7 @@ def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
         segment_ids = segment_ids.view(-1, segment_ids.size(2))
         co_attention_mask = co_attention_mask.view(-1, co_attention_mask.size(2), co_attention_mask.size(3))
 
-    elif task_id in ['TASK8', 'TASK9']:
+    elif task_id in [ 'TASK9']:
         batch_size = features.size(0)
         max_num_bbox = features.size(1)
         num_options = question.size(1)
@@ -102,7 +100,7 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
     features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
 
-    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7']:
+    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK8']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -113,7 +111,7 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         segment_ids = segment_ids.view(-1, segment_ids.size(2))
         co_attention_mask = co_attention_mask.view(-1, co_attention_mask.size(2), co_attention_mask.size(3))
 
-    elif task_id in ['TASK8', 'TASK9','TASK12']:
+    elif task_id in [ 'TASK9','TASK12']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.view(-1, features.size(2), features.size(3))
@@ -164,8 +162,14 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
     return loss, batch_score
 
 
-def LoadLosses(args, task_cfg, task_ids):
+def LoadLosses(args, task_cfg, task_ids, device):
+    label_weight = torch.from_numpy(np.array(json.load(open("data/label_weight.json",'r'))['weight']).astype('float32')).cuda()
 
+    LossMap = {'BCEWithLogitLoss': nn.BCEWithLogitsLoss(reduction='mean'),
+           'CrossEntropyLoss': nn.CrossEntropyLoss(),
+           'CrossEntropyLoss_ign': nn.CrossEntropyLoss(ignore_index=-1),
+           'CrossEntropyLoss_ign_balance': nn.CrossEntropyLoss(ignore_index=-1,weight=label_weight.cuda(device=device, non_blocking=True)),
+            }
     losses = {}
     task_types = []
     num_labels = 0
@@ -370,7 +374,7 @@ def EvaluatingModel(args,tokenizer, task_cfg, device, task_id, batch, model, tas
     features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
 
-    if task_id in ['TASK0', 'TASK1', 'TASK2','TASK5']:
+    if task_id in ['TASK0', 'TASK1', 'TASK2','TASK5','TASK6','TASK7','TASK8']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)

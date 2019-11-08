@@ -1,0 +1,235 @@
+.
+├── config
+│   ├── bert_base_2layer_2conect.json
+│   ├── bert_base_4layer_4conect.json
+│   ├── bert_base_6layer_6conect.json
+│   ├── bert_base_8layer_8conect.json
+│   ├── bert_base_baseline.json
+│   ├── bert-base-uncased_weight_name.json
+│   ├── bert_large_2layer_2conect.json
+│   ├── bert_large_4layer_4conect.json
+│   ├── bert_large_6layer_6conect.json
+│   ├── bert_large_baseline.json
+│   └── bert-large-uncased_weight_name.json
+├── data
+│   ├── README.md
+│   └── VGSG
+│       ├── cache
+│       │   ├── train_VGenomeSceneGraph_100_50_vcr.pkl
+│       │   ├── train_VGenomeSceneGraph_62_50_vcr.pkl
+│       │   ├── train_VGenomeSceneGraph_65_50_vcr.pkl
+│       │   ├── train_VGenomeSceneGraph_77_50_vcr.pkl
+│       │   ├── val_VGenomeSceneGraph_100_50_vcr.pkl
+│       │   ├── val_VGenomeSceneGraph_62_50_vcr.pkl
+│       │   ├── val_VGenomeSceneGraph_65_50_vcr.pkl
+│       │   └── val_VGenomeSceneGraph_77_50_vcr.pkl
+│       └── scene_graphs.json
+├── eval_retrieval.py
+├── eval_tasks.py
+├── fig
+│   ├── vilbert.png
+│   └── vilbert_trim.png
+├── file_structure.txt
+├── README.md
+├── requirements.txt
+├── results
+│   ├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_62-
+│   │   ├── eval.txt
+│   │   ├── val_others.json
+│   │   └── val_result.json
+│   ├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_62_nobg-
+│   │   ├── eval.txt
+│   │   ├── val_others.json
+│   │   └── val_result.json
+│   └── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_test-
+│       ├── eval.txt
+│       ├── show_validation.ipynb
+│       ├── val_others.json
+│       └── val_result.json
+├── save
+│   ├── ConceptualCaption
+│   │   └── pytorch_model_9.bin
+│   ├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_62
+│   │   ├── command.txt
+│   │   ├── out.txt
+│   │   ├── pytorch_model_0.bin
+│   │   ├── pytorch_model_1.bin
+│   │   ├── pytorch_model_2.bin
+│   │   ├── pytorch_model_3.bin
+│   │   ├── pytorch_model_4.bin
+│   │   └── pytorch_model_5.bin
+│   ├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_62_nobg
+│   │   ├── command.txt
+│   │   ├── out.txt
+│   │   ├── pytorch_model_0.bin
+│   │   ├── pytorch_model_1.bin
+│   │   ├── pytorch_model_2.bin
+│   │   └── pytorch_model_3.bin
+│   ├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_77
+│   │   ├── command.txt
+│   │   └── out.txt
+│   └── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_test
+│       ├── command.txt
+│       ├── out.txt
+│       ├── pytorch_model_0.bin
+│       ├── pytorch_model_10.bin
+│       ├── pytorch_model_11.bin
+│       ├── pytorch_model_12.bin
+│       ├── pytorch_model_13.bin
+│       ├── pytorch_model_14.bin
+│       ├── pytorch_model_15.bin
+│       ├── pytorch_model_16.bin
+│       ├── pytorch_model_17.bin
+│       ├── pytorch_model_18.bin
+│       ├── pytorch_model_19.bin
+│       ├── pytorch_model_1.bin
+│       ├── pytorch_model_2.bin
+│       ├── pytorch_model_3.bin
+│       ├── pytorch_model_4.bin
+│       ├── pytorch_model_5.bin
+│       ├── pytorch_model_6.bin
+│       ├── pytorch_model_7.bin
+│       ├── pytorch_model_8.bin
+│       └── pytorch_model_9.bin
+├── script
+│   ├── conceptual_caption_preprocess_sequential_train.py
+│   ├── conceptual_caption_preprocess_sequential_train_segment.py
+│   ├── conceptual_caption_preprocess_sequential_val.py
+│   ├── convert_lmdb_flickr30k.py
+│   ├── convert_lmdb_refcoco+_gt.py
+│   ├── convert_lmdb_refcoco+.py
+│   ├── convert_lmdb_VCR_gt.py
+│   ├── convert_lmdb_VCR.py
+│   ├── convert_lmdb_VG_gt.py
+│   ├── convert_lmdb_VG.py
+│   ├── convert_test_lmdb.py
+│   └── convert_trainval_lmdb.py
+├── tools
+│   ├── DownloadConcptualCaption
+│   │   ├── download_data.py
+│   │   ├── downloaded_report.ipynb
+│   │   ├── LICENSE
+│   │   └── README.md
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   └── __init__.cpython-36.pyc
+│   └── refer
+│       ├── data
+│       │   └── README.md
+│       ├── evaluation
+│       │   ├── bleu
+│       │   │   ├── bleu.py
+│       │   │   ├── bleu_scorer.py
+│       │   │   ├── __init__.py
+│       │   │   └── LICENSE
+│       │   ├── cider
+│       │   │   ├── cider.py
+│       │   │   ├── cider_scorer.py
+│       │   │   └── __init__.py
+│       │   ├── __init__.py
+│       │   ├── meteor
+│       │   │   ├── data
+│       │   │   │   └── paraphrase-en.gz
+│       │   │   ├── __init__.py
+│       │   │   ├── meteor-1.5.jar
+│       │   │   └── meteor.py
+│       │   ├── readme.txt
+│       │   ├── refEvaluation.py
+│       │   ├── rouge
+│       │   │   ├── __init__.py
+│       │   │   └── rouge.py
+│       │   └── tokenizer
+│       │       ├── __init__.py
+│       │       ├── ptbtokenizer.py
+│       │       └── stanford-corenlp-3.4.1.jar
+│       ├── external
+│       │   ├── __init__.py
+│       │   ├── maskApi.c
+│       │   ├── maskApi.h
+│       │   ├── _mask.c
+│       │   ├── _mask.cpython-36m-x86_64-linux-gnu.so
+│       │   ├── _mask.cpython-37m-x86_64-linux-gnu.so
+│       │   ├── mask.py
+│       │   ├── _mask.pyx
+│       │   ├── __pycache__
+│       │   │   ├── __init__.cpython-36.pyc
+│       │   │   └── mask.cpython-36.pyc
+│       │   └── README.md
+│       ├── __init__.py
+│       ├── LICENSE
+│       ├── Makefile
+│       ├── __pycache__
+│       │   ├── __init__.cpython-36.pyc
+│       │   └── refer.cpython-36.pyc
+│       ├── pyEvalDemo.ipynb
+│       ├── pyReferDemo.ipynb
+│       ├── README.md
+│       ├── refer.py
+│       ├── setup.py
+│       └── test
+│           ├── sample_expressions_testA.json
+│           └── sample_expressions_testB.json
+├── train_baseline.py
+├── train_concap.py
+├── train_tasks.py
+├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_62
+│   ├── events.out.tfevents.1572350585.RCEU-GPU-S006
+│   ├── events.out.tfevents.1572350599.RCEU-GPU-S006
+│   ├── events.out.tfevents.1572350601.RCEU-GPU-S006
+│   └── events.out.tfevents.1572350605.RCEU-GPU-S006
+├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_62_nobg
+│   ├── events.out.tfevents.1572510510.RCEU-GPU-S006
+│   ├── events.out.tfevents.1572510522.RCEU-GPU-S006
+│   └── events.out.tfevents.1572510552.RCEU-GPU-S006
+├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_maxlen_77
+│   ├── events.out.tfevents.1572350013.RCEU-GPU-S006
+│   ├── events.out.tfevents.1572350014.RCEU-GPU-S006
+│   └── events.out.tfevents.1572350018.RCEU-GPU-S006
+├── VGenomeSceneGraph_bert_base_6layer_6conect-vgsg_pretrained_test
+│   ├── events.out.tfevents.1571982444.RCEU-GPU-S006
+│   ├── events.out.tfevents.1571982446.RCEU-GPU-S006
+│   ├── events.out.tfevents.1571982454.RCEU-GPU-S006
+│   └── events.out.tfevents.1571982468.RCEU-GPU-S006
+├── VG_gt.lmdb
+│   ├── data.mdb
+│   └── lock.mdb
+├── VG.lmdb
+│   ├── data.mdb
+│   └── lock.mdb
+├── vilbert
+│   ├── basebert.py
+│   ├── datasets
+│   │   ├── concept_cap_dataset.py
+│   │   ├── _image_features_reader.py
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── concept_cap_dataset.cpython-36.pyc
+│   │   │   ├── _image_features_reader.cpython-36.pyc
+│   │   │   ├── __init__.cpython-36.pyc
+│   │   │   ├── refer_expression_dataset.cpython-36.pyc
+│   │   │   ├── retreival_dataset.cpython-36.pyc
+│   │   │   ├── vcr_dataset.cpython-36.pyc
+│   │   │   ├── vgsg_dataset.cpython-36.pyc
+│   │   │   ├── vgsg_novision_dataset.cpython-36.pyc
+│   │   │   └── vqa_dataset.cpython-36.pyc
+│   │   ├── refer_expression_dataset.py
+│   │   ├── retreival_dataset.py
+│   │   ├── vcr_dataset.py
+│   │   ├── vg_dataset_analysis.ipynb
+│   │   ├── vgsg_dataset.py
+│   │   ├── vgsg_novision_dataset.py
+│   │   └── vqa_dataset.py
+│   ├── __init__.py
+│   ├── optimization.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-36.pyc
+│   │   ├── optimization.cpython-36.pyc
+│   │   ├── task_utils.cpython-36.pyc
+│   │   ├── utils.cpython-36.pyc
+│   │   └── vilbert.cpython-36.pyc
+│   ├── task_utils.py
+│   ├── utils.py
+│   └── vilbert.py
+└── vlbert_tasks.yml
+
+42 directories, 190 files

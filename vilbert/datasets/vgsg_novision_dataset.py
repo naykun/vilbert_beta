@@ -80,7 +80,7 @@ class VGSGNoVisDataset(Dataset):
         max_region_num: int = 60
     ):
         # All the keys in `self._entries` would be present in `self._image_features_reader`
-        if task == 'VGenomeSceneGraph':
+        if task == 'VGenomeSceneGraphnoVision':
             self._entries = _load_annotationsVGSG_R(annotations_jsonpath, split)
         else:
             assert False

@@ -163,7 +163,7 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
 
 
 def LoadLosses(args, task_cfg, task_ids, device):
-    label_weight = torch.from_numpy(np.array(json.load(open("data/label_weight.json",'r'))['weight']).astype('float32')).cuda()
+    label_weight = torch.from_numpy(np.array(json.load(open("data/VGSG/label_weight.json",'r'))['weight']).astype('float32')).cuda()
 
     LossMap = {'BCEWithLogitLoss': nn.BCEWithLogitsLoss(reduction='mean'),
            'CrossEntropyLoss': nn.CrossEntropyLoss(),

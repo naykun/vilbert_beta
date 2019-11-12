@@ -33,7 +33,7 @@ def _converId(img_id):
     return new_id
 
 
-def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/VG_split.json'):
+def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/VGSG/VG_split.json'):
     split_dict = json.load(open(split_jsonpath,'r'))
     entries = []
     with open(annotations_jsonpath, 'r') as f:
@@ -114,8 +114,8 @@ class VGSGNMDataset(Dataset):
         This will add caption_tokens in each entry of the dataset.
         -1 represents nil, and should be treated as padding_idx in embedding.
         """
-        obj_set = set(json.load(open('data/VG_obj_set_150.json','r'))['object'])
-        rel_set = set(json.load(open('data/VG_rel_set_50.json','r'))['relation'])
+        obj_set = set(json.load(open('data/VGSG/VG_obj_set_150.json','r'))['object'])
+        rel_set = set(json.load(open('data/VGSG/VG_rel_set_50.json','r'))['relation'])
 
         count = 0
         for entry in self._entries:

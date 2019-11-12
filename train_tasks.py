@@ -234,7 +234,8 @@ def main():
     task_batch_size, task_num_iters, task_ids, task_datasets_train, task_datasets_val, \
             task_dataloader_train, task_dataloader_val = LoadDatasets(args, task_cfg, args.tasks.split('-'))
 
-    tbLogger = utils.tbLogger(timeStamp, savePath, task_names, task_ids, task_num_iters, args.gradient_accumulation_steps)
+    log_path = os.path.join('log',timeStamp)
+    tbLogger = utils.tbLogger(log_path, savePath, task_names, task_ids, task_num_iters, args.gradient_accumulation_steps)
 
     # if n_gpu > 0:
         # torch.cuda.manual_seed_all(args.seed)

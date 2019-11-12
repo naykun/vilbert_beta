@@ -4,7 +4,7 @@ TASK0:
   loss: BCEWithLogitLoss
   task_id: 1
   dataroot: data/VQA
-  features_h5path1: data/coco/coco_trainval_resnet101_faster_rcnn_genome.lmdb
+  features_h5path1: data/VQA/coco_trainval_resnet101_faster_rcnn_genome.lmdb
   features_h5path2: ''
   train_annotations_jsonpath: ''
   val_annotations_jsonpath: ''
@@ -91,8 +91,8 @@ TASK5:
   loss: CrossEntropyLoss_ign
   task_id: 12
   dataroot: data/VGSG
-  features_h5path1: VG.lmdb
-  features_h5path2: VG_gt.lmdb
+  features_h5path1: data/VGSG/VG.lmdb
+  features_h5path2: data/VGSG/VG_gt.lmdb
   train_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   val_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   max_seq_length: 65
@@ -109,8 +109,8 @@ TASK6:
   loss: CrossEntropyLoss_ign
   task_id: 13
   dataroot: data/VGSG
-  features_h5path1: VG.lmdb
-  features_h5path2: VG_gt.lmdb
+  features_h5path1: data/VGSG/VG.lmdb
+  features_h5path2: data/VGSG/VG_gt.lmdb
   train_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   val_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   max_seq_length: 65
@@ -127,8 +127,8 @@ TASK7:
   loss: CrossEntropyLoss_ign_balance
   task_id: 12
   dataroot: data/VGSG
-  features_h5path1: VG.lmdb
-  features_h5path2: VG_gt.lmdb
+  features_h5path1: data/VGSG/VG.lmdb
+  features_h5path2: data/VGSG/VG_gt.lmdb
   train_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   val_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   max_seq_length: 65
@@ -145,8 +145,8 @@ TASK8:
   loss: CrossEntropyLoss_ign
   task_id: 13
   dataroot: data/VGSG
-  features_h5path1: VG.lmdb
-  features_h5path2: VG_gt.lmdb
+  features_h5path1: data/VGSG/VG.lmdb
+  features_h5path2: data/VGSG/VG_gt.lmdb
   train_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   val_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
   max_seq_length: 65

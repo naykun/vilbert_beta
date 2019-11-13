@@ -1009,7 +1009,7 @@ class BertPreTrainingHeads(nn.Module):
         super(BertPreTrainingHeads, self).__init__()
         self.predictions = BertLMPredictionHead(config, bert_model_embedding_weights)
         self.bi_seq_relationship = nn.Linear(config.bi_hidden_size, 2)
-        self.imagePredictions = BertImagePredictionHead(config)
+        self.imagePredictions = BertImagePredictionHead(config, bert_model_embedding_weights)
         self.fusion_method = config.fusion_method
         self.dropout = nn.Dropout(0.1)
 
@@ -1032,17 +1032,29 @@ class BertPreTrainingHeads(nn.Module):
 
 
 class BertImagePredictionHead(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, bert_model_embedding_weights):
         super(BertImagePredictionHead, self).__init__()
         self.transform = BertImgPredictionHeadTransform(config)
-
+        self.use_bias = False
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Linear(config.v_hidden_size, config.v_target_size)
+        if hasattr(config,'v_predict_linguistic_label') and config.v_predict_linguistic_label:
+            self.decoder = nn.Linear(
+                bert_model_embedding_weights.size(1),
+                bert_model_embedding_weights.size(0),
+                bias=False,
+            )
+            self.decoder.weight = bert_model_embedding_weights
+            self.bias = nn.Parameter(torch.zeros(bert_model_embedding_weights.size(0)))
+            self.use_bias = True
+        else:
+            self.decoder = nn.Linear(config.v_hidden_size, config.v_target_size)
 
     def forward(self, hidden_states):
         hidden_states = self.transform(hidden_states)
         hidden_states = self.decoder(hidden_states)
+        if self.use_bias:
+            hidden_states = hidden_states + self.bias
         return hidden_states
 
 

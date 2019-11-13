@@ -156,7 +156,7 @@ def main():
     )
     args = parser.parse_args()
     with open('vlbert_tasks.yml', 'r') as f:
-        task_cfg = edict(yaml.load(f))
+        task_cfg = edict(yaml.load(f, Loader=yaml.FullLoader))
 
     # random.seed(args.seed)
     # np.random.seed(args.seed)

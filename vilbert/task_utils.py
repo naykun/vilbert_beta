@@ -97,12 +97,13 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
     # get the batch
     batch = task_iter_train[task_id].next()
     batch = tuple(t.cuda(device=device, non_blocking=True) for t in batch)
-    features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
+    features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels = batch
     batch_size = features.size(0)
 
-    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK8']:
+    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK8', 'TASK10']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
+        max_seq_length = question.size(2)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
         spatials = spatials.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 5).contiguous().view(-1, max_num_bbox, 5)
         image_mask = image_mask.unsqueeze(1).expand(batch_size, num_options, max_num_bbox).contiguous().view(-1, max_num_bbox)
@@ -121,6 +122,8 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         input_mask = input_mask.view(-1, input_mask.size(2))
         segment_ids = segment_ids.view(-1, segment_ids.size(2))
         co_attention_mask = co_attention_mask.view(-1, co_attention_mask.size(2), co_attention_mask.size(3))
+
+
 
     # get the model output
     vil_prediction, vil_logit, vil_binary_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit = \
@@ -158,6 +161,20 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         loss = loss.mean()
         _, preds = torch.max(linguisic_prediction, dim=1)
         batch_score = float((preds == target).sum()) / float(batch_size)
+    
+    elif task_cfg[task_id]['type'] == 'VL-pred':
+        linguisic_prediction = linguisic_prediction.squeeze(1)
+        vision_prediction = vision_prediction.squeeze(1)
+        target = target.view(-1)
+        bbox_labels = bbox_labels.view(-1)
+
+        loss_l = task_losses[task_id](linguisic_prediction, target)
+        loss_v = task_losses[task_id](vision_prediction,bbox_labels)
+        loss = loss_l.mean() + loss_v.mean()
+        _, preds = torch.max(linguisic_prediction, dim=1)
+        _, v_preds = torch.max(vision_prediction,dim=1)
+        batch_score = (float((preds == target).sum()) + float((v_preds == bbox_labels).sum())) / float(batch_size) / float(max_num_bbox + float(max_seq_length-2)/3)
+ 
 
     return loss, batch_score
 

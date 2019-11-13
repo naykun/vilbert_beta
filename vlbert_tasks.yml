@@ -157,3 +157,21 @@ TASK8:
   val_split: val
   lr: 0.00004
   num_epoch: 20
+TASK10:
+  name: VGenomeSceneGraph
+  type: VL-pred
+  loss: CrossEntropyLoss_ign
+  task_id: 13
+  dataroot: data/VGSG
+  features_h5path1: data/VGSG/VG.lmdb
+  features_h5path2: data/VGSG/VG_gt.lmdb
+  train_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
+  val_annotations_jsonpath: 'data/VGSG/scene_graphs.json'
+  max_seq_length: 65
+  max_region_num: 50
+  batch_size: 8
+  eval_batch_size: 4
+  train_split: train
+  val_split: val
+  lr: 0.00004
+  num_epoch: 20

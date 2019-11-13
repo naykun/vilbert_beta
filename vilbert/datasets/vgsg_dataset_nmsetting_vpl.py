@@ -76,7 +76,7 @@ def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/
 
     return entries
 
-class VGSGNMDataset(Dataset):
+class VGSGNMVPLDataset(Dataset):
     def __init__(
         self,
         task: str,
@@ -110,7 +110,7 @@ class VGSGNMDataset(Dataset):
             os.makedirs(os.path.join(dataroot, "cache"))
 
         # cache file path data/cache/train_ques
-        cache_path = "data/VGSG/cache/" + split + '_' + task + "_" + str(max_seq_length) + "_" + str(max_region_num) + "_vgsgnmsetting.pkl"
+        cache_path = "data/VGSG/cache/" + split + '_' + task + "_" + str(max_seq_length) + "_" + str(max_region_num) + "_vgsgnmsetting_vpl.pkl"
         if not os.path.exists(cache_path):
             self.tokenize()
             self.tensorize()
@@ -163,6 +163,8 @@ class VGSGNMDataset(Dataset):
             segment_ids = [0] * len(tokens)
             input_mask = [1] * len(tokens)
 
+            bbox_labels = entry['bbox_labels']
+            bbox_labels = [self._tokenizer.vocab.get(self._tokenizer.tokenize(x)[0], self._tokenizer.vocab['[UNK]']) for x in bbox_labels]
             # input_mask = [1 if i%3==2 else 0 for i in range(len(tokens))]
             # co_attention_mask = [-1 if i%3==2 else 1 for i in range(len(tokens))]
             # co_attention_mask = torch.zeros((self._max_region_num, self._max_seq_length))
@@ -176,6 +178,9 @@ class VGSGNMDataset(Dataset):
                 segment_ids += padding 
                 target += [-1] * len(padding)  
 
+            if len(bbox_labels) < self._max_region_num:
+                padding = [-1] * (self._max_region_num- len(bbox_labels))
+                bbox_labels = bbox_labels + padding
 
             assert_eq(len(tokens), self._max_seq_length)
             entry['input_ids'] = tokens 
@@ -183,6 +188,7 @@ class VGSGNMDataset(Dataset):
             entry['segment_ids'] = segment_ids
             # entry["co_attention_mask"] = co_attention_mask
             entry['target'] = target
+            entry['bbox_label'] = bbox_labels
 
             sys.stdout.write('%d/%d\r' % (count, len(self._entries)))
             sys.stdout.flush()
@@ -203,6 +209,8 @@ class VGSGNMDataset(Dataset):
             target = torch.from_numpy(np.array(entry["target"]))
             entry["target"] = target
 
+            bbox_labels = torch.from_numpy(np.array(entry["bbox_labels"]))
+            entry["bbox_labels"] = bbox_labels
 
     def _get_random_pair(self, object_list, gt_pairs, num_pairs):
         num_obj = len(object_list)
@@ -244,8 +252,8 @@ class VGSGNMDataset(Dataset):
         features = features[:num_box_preserve]
 
         # concatenate the boxes
-        mix_boxes = np.concatenate((boxes, gt_boxes), axis=0)
-        mix_features = np.concatenate((features, gt_features), axis=0)
+        mix_boxes = np.concatenate((gt_boxes, boxes), axis=0)
+        mix_features = np.concatenate((gt_features, features), axis=0)
         mix_num_boxes = num_box_preserve + int(gt_num_boxes)
         
         image_mask = [1] * (mix_num_boxes)
@@ -267,6 +275,7 @@ class VGSGNMDataset(Dataset):
         input_mask = entry["input_mask"]
         segment_ids = entry["segment_ids"]
         target = entry["target"]
+        bbox_labels = bbox_labels
 
         assert_eq(len(input_ids),len(input_mask))
         assert_eq(len(input_mask),len(segment_ids))
@@ -282,7 +291,7 @@ class VGSGNMDataset(Dataset):
         input_ids = input_ids.unsqueeze(1)
         input_mask = input_mask.unsqueeze(1)
         segment_ids = segment_ids.unsqueeze(1)
-        return features, spatials, image_mask, input_ids, target, input_mask, segment_ids, co_attention_mask, anno_id
+        return features, spatials, image_mask, input_ids, target, input_mask, segment_ids, co_attention_mask, anno_id, bbox_labels
 
     def __len__(self):
         return len(self._entries)

@@ -22,10 +22,18 @@ logger = logging.getLogger(__name__)
 
 def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses):
     batch = tuple(t.cuda(device=device, non_blocking=True) for t in batch)
-    features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
+    # features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
+    if task_id == 'TASK10':
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels = batch
+    if task_id == 'TASK11':
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels, token_position = batch
+    else:
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
+    max_num_bbox = features.size(1)
+    max_seq_length = question.size(1)
 
-    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK8',]:
+    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -40,6 +48,7 @@ def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
         batch_size = features.size(0)
         max_num_bbox = features.size(1)
         num_options = question.size(1)
+        max_seq_length = question.size(2)
         features = features.view(-1, features.size(2), features.size(3))
         spatials = spatials.view(-1, spatials.size(2), spatials.size(3))
         image_mask = image_mask.view(-1, image_mask.size(2))
@@ -48,8 +57,12 @@ def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
         segment_ids = segment_ids.view(-1, segment_ids.size(2))
         co_attention_mask = co_attention_mask.view(-1, co_attention_mask.size(2), co_attention_mask.size(3))
 
-    vil_prediction, vil_logit, vil_binary_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit = \
-                                            model(question, features, spatials, segment_ids, input_mask, image_mask, co_attention_mask)
+    if task_id in ['TASK11']:
+        vil_prediction, vil_logit, vil_binary_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit = \
+                model(question, features, spatials, segment_ids, input_mask, image_mask, co_attention_mask, token_position = token_position)
+    else:
+        vil_prediction, vil_logit, vil_binary_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit = \
+                model(question, features, spatials, segment_ids, input_mask, image_mask, co_attention_mask)
     
     if task_cfg[task_id]['type'] == 'VL-classifier':
         loss = task_losses[task_id](vil_prediction, target)
@@ -77,13 +90,31 @@ def ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
         # print(linguisic_prediction.size())
         # print(target.size())
         # print(question.size())
-        linguisic_prediction = linguisic_prediction.squeeze(1)
+        # linguisic_prediction = linguisic_prediction.squeeze(1)
+        linguisic_prediction = linguisic_prediction.view(batch_size*max_seq_length,-1)
         target = target.view(-1)
         loss = task_losses[task_id](linguisic_prediction, target)
         loss = loss.mean()
         _, preds = torch.max(linguisic_prediction, dim=1)
-        batch_score = float((preds == target).sum()) / float(batch_size)
+        # batch_score = float((preds == target).sum()) / float(batch_size)
+        batch_score = float((preds == target).sum()) / float(batch_size) / (float(max_seq_length - 2)/3)
+    elif task_cfg[task_id]['type'] == 'VL-pred':
+        linguisic_prediction = linguisic_prediction.view(batch_size*max_seq_length,-1)
+        vision_prediction = vision_prediction.view(batch_size*max_num_bbox,-1)
+        target = target.view(-1)
+        bbox_labels = bbox_labels.view(-1)
 
+        print(vision_prediction.size())
+        print(bbox_labels.size())
+
+        loss_l = task_losses[task_id](linguisic_prediction, target)
+        loss_v = task_losses[task_id](vision_prediction,bbox_labels)
+        loss = loss_l.mean() + loss_v.mean()
+        
+        _, preds = torch.max(linguisic_prediction, dim=1)
+        _, v_preds = torch.max(vision_prediction,dim=1)
+        batch_score = (float((preds == target).sum()) + float((v_preds == bbox_labels).sum())) / float(batch_size) / float(max_num_bbox + float(max_seq_length-2)/3)
+ 
     return float(loss), float(batch_score), batch_size
 
 def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_train, task_dataloader_train, model, task_losses, task_start_iter):
@@ -97,11 +128,18 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
     # get the batch
     batch = task_iter_train[task_id].next()
     batch = tuple(t.cuda(device=device, non_blocking=True) for t in batch)
-    features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels = batch
+    if task_id == 'TASK10':
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels = batch
+    if task_id == 'TASK11':
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels, token_position = batch
+    else:
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
-
-    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7','TASK8', 'TASK10']:
+    max_num_bbox = features.size(1)
+    max_seq_length = question.size(1)
+    if task_id in ['TASK2', 'TASK3', 'TASK5', 'TASK6', 'TASK7']:
         max_num_bbox = features.size(1)
+
         num_options = question.size(1)
         max_seq_length = question.size(2)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -115,7 +153,8 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
     elif task_id in [ 'TASK9','TASK12']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
-        features = features.view(-1, features.size(2), features.size(3))
+        max_seq_length = question.size(2)
+        features = features.view(-1, features.size(1), features.size(2))
         spatials = spatials.view(-1, spatials.size(2), spatials.size(3))
         image_mask = image_mask.view(-1, image_mask.size(2))
         question = question.view(-1, question.size(2))
@@ -126,8 +165,13 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
 
 
     # get the model output
-    vil_prediction, vil_logit, vil_binary_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit = \
-            model(question, features, spatials, segment_ids, input_mask, image_mask, co_attention_mask)
+    if task_id in ['TASK11']:
+        vil_prediction, vil_logit, vil_binary_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit = \
+                model(question, features, spatials, segment_ids, input_mask, image_mask, co_attention_mask, token_position = token_position)
+    else:
+        vil_prediction, vil_logit, vil_binary_prediction, vision_prediction, vision_logit, linguisic_prediction, linguisic_logit = \
+                model(question, features, spatials, segment_ids, input_mask, image_mask, co_attention_mask)
+
 
     # for different task, we use different output to calculate the loss.
     if task_cfg[task_id]['type'] == 'VL-classifier':
@@ -154,23 +198,27 @@ def ForwardModelsTrain(args, task_cfg, device, task_id, task_count, task_iter_tr
         # print(linguisic_prediction.size())
         # print(target.size())
         # print(question.size())
-        linguisic_prediction = linguisic_prediction.squeeze(1)
+        linguisic_prediction = linguisic_prediction.view(batch_size*max_seq_length,-1)
         target = target.view(-1)
         
         loss = task_losses[task_id](linguisic_prediction, target)
         loss = loss.mean()
         _, preds = torch.max(linguisic_prediction, dim=1)
-        batch_score = float((preds == target).sum()) / float(batch_size)
+        batch_score = float((preds == target).sum()) / float(batch_size) / (float(max_seq_length - 2)/3)
     
     elif task_cfg[task_id]['type'] == 'VL-pred':
-        linguisic_prediction = linguisic_prediction.squeeze(1)
-        vision_prediction = vision_prediction.squeeze(1)
+        linguisic_prediction = linguisic_prediction.view(batch_size*max_seq_length,-1)
+        vision_prediction = vision_prediction.view(batch_size*max_num_bbox,-1)
         target = target.view(-1)
         bbox_labels = bbox_labels.view(-1)
+
+        # print(vision_prediction.size())
+        # print(bbox_labels.size())
 
         loss_l = task_losses[task_id](linguisic_prediction, target)
         loss_v = task_losses[task_id](vision_prediction,bbox_labels)
         loss = loss_l.mean() + loss_v.mean()
+        # print("$$$$$$$$$$$$$$$$$$$$$$$$")
         _, preds = torch.max(linguisic_prediction, dim=1)
         _, v_preds = torch.max(vision_prediction,dim=1)
         batch_score = (float((preds == target).sum()) + float((v_preds == bbox_labels).sum())) / float(batch_size) / float(max_num_bbox + float(max_seq_length-2)/3)
@@ -388,10 +436,18 @@ def compute_score_with_logits(logits, labels):
 
 def EvaluatingModel(args,tokenizer, task_cfg, device, task_id, batch, model, task_dataloader, task_losses, results, others):
     batch = tuple(t.cuda(device=device, non_blocking=True) for t in batch)
-    features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
+    # features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
+    if task_id == 'TASK10':
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels = batch
+    if task_id == 'TASK11':
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id, bbox_labels, token_position = batch
+    else:
+        features, spatials, image_mask, question, target, input_mask, segment_ids, co_attention_mask, question_id = batch
     batch_size = features.size(0)
+    max_num_bbox = features.size(1)
+    max_seq_length = question.size(1)
 
-    if task_id in ['TASK0', 'TASK1', 'TASK2','TASK5','TASK6','TASK7','TASK8']:
+    if task_id in ['TASK0', 'TASK1', 'TASK2','TASK5','TASK6','TASK7']:
         max_num_bbox = features.size(1)
         num_options = question.size(1)
         features = features.unsqueeze(1).expand(batch_size, num_options, max_num_bbox, 2048).contiguous().view(-1, max_num_bbox, 2048)
@@ -459,20 +515,102 @@ def EvaluatingModel(args,tokenizer, task_cfg, device, task_id, batch, model, tas
         # print(linguisic_prediction.size())
         # print(target.size())
         # print(question.size())
-        linguisic_prediction = linguisic_prediction.squeeze(1)
+        # linguisic_prediction = linguisic_prediction.squeeze(1)
+        linguisic_prediction = linguisic_prediction.view(batch_size*max_seq_length,-1)
         target = target.view(-1)
         
         loss = task_losses[task_id](linguisic_prediction, target)
         loss = loss.mean()
-        _, preds = torch.max(linguisic_prediction, dim=1)
-        batch_score = float((preds == target).sum()) / float(batch_size)
+        confidence, preds = torch.max(linguisic_prediction, dim=1)
+        # batch_score = float((preds == target).sum()) / float(batch_size)
+        batch_score = float((preds == target).sum()) / float(batch_size) / (float(max_seq_length - 2)/3)
 
-        print(linguisic_prediction.size())
-        print(target.size())
-        preds_token = tokenizer.convert_ids_to_tokens(preds.tolist())
+        target = target.view(batch_size,-1)
+        preds = preds.view(batch_size,-1)
+        confidence = confidence.view(batch_size, -1)
+        confidence = confidence.tolist()
+        question_id = question_id.tolist()
+        question = question.tolist()
+        # print(linguisic_prediction.size())
+        # print(target.size())
+        # preds_token = tokenizer.convert_ids_to_tokens(preds.tolist())
+        # target = target.tolist()
+        # target = [x if x!=-1 else tokenizer.vocab["[MASK]"] for x in target]
+        # target_token = tokenizer.convert_ids_to_tokens(target)
+        preds_token = [tokenizer.convert_ids_to_tokens(pred)[1:-1] for pred in preds.tolist()]
         target = target.tolist()
-        target = [x if x!=-1 else tokenizer.vocab["[MASK]"] for x in target]
-        target_token = tokenizer.convert_ids_to_tokens(target)
-        results.append({'prediction':preds_token, 'target':target_token})
+        target = [[x if x!=-1 else tokenizer.vocab["[MASK]"] for x in t] for t in target]
+        target_token = [tokenizer.convert_ids_to_tokens(t)[1:-1] for t in target]
+        question_token = [tokenizer.convert_ids_to_tokens(t)[1:-1] for t in question]
+        pairs_batch = []
+        for q_token, p_token, p_conf, t_token, sg_id in zip(question_token, preds_token,confidence, target_token, question_id):
+            total_len = len(q_token)
+            pairs_prediction = []
+            pairs_gt = []
+            for i in range(2,total_len,3):
+                subj = q_token[i-2]
+                obj = q_token[i]
+                predicate = p_token[i-1]
+                conf = p_conf[i-1]
+                gt_pred = t_token[i-1]
+                pairs_prediction.append((subj,predicate,obj,conf))
+                if gt_pred != 'background':
+                    pairs_gt.append((subj,predicate,obj))
+            pairs_batch.append([pairs_prediction,pairs_gt,sg_id])
+        results.append({'prediction':preds_token, 'target':target_token, 'batch_pairs':pairs_batch})
+    elif task_cfg[task_id]['type'] == 'VL-pred':
+        linguisic_prediction = linguisic_prediction.view(batch_size*max_seq_length,-1)
+        vision_prediction = vision_prediction.view(batch_size*max_num_bbox,-1)
+        target = target.view(-1)
+        bbox_labels = bbox_labels.view(-1)
+
+        # print(vision_prediction.size())
+        # print(bbox_labels.size())
+
+        loss_l = task_losses[task_id](linguisic_prediction, target)
+        loss_v = task_losses[task_id](vision_prediction,bbox_labels)
+        loss = loss_l.mean() + loss_v.mean()
+        # print("$$$$$$$$$$$$$$$$$$$$$$$$")
+        confidence, preds = torch.max(linguisic_prediction, dim=1)
+        v_confidence, v_preds = torch.max(vision_prediction,dim=1)
+        batch_score = (float((preds == target).sum()) + float((v_preds == bbox_labels).sum())) / float(batch_size) / float(max_num_bbox + float(max_seq_length-2)/3)
+
+        target = target.view(batch_size,-1)
+        bbox_labels = bbox_labels.view(batch_size,-1)
+        preds = preds.view(batch_size,-1)
+        v_preds = v_preds.view(batch_size,-1)
+        confidence = confidence.view(batch_size, -1)
+        confidence = confidence.tolist()
+        question_id = question_id.tolist()
+        question = question.tolist()
+
+        preds_token = [tokenizer.convert_ids_to_tokens(pred)[1:-1] for pred in preds.tolist()]
+        target = target.tolist()
+        target = [[x if x!=-1 else tokenizer.vocab["[MASK]"] for x in t] for t in target]
+        target_token = [tokenizer.convert_ids_to_tokens(t)[1:-1] for t in target]
+        question_token = [tokenizer.convert_ids_to_tokens(t)[1:-1] for t in question]
+        pairs_batch = []
+        for q_token, p_token, p_conf, t_token, sg_id in zip(question_token, preds_token,confidence, target_token, question_id):
+            total_len = len(q_token)
+            pairs_prediction = []
+            pairs_gt = []
+            for i in range(2,total_len,3):
+                subj = q_token[i-2]
+                obj = q_token[i]
+                predicate = p_token[i-1]
+                conf = p_conf[i-1]
+                gt_pred = t_token[i-1]
+                pairs_prediction.append((subj,predicate,obj,conf))
+                if gt_pred != 'background':
+                    pairs_gt.append((subj,predicate,obj))
+            pairs_batch.append([pairs_prediction,pairs_gt,sg_id])
+
+        v_preds_token = [tokenizer.convert_ids_to_tokens(v_pred) for v_pred in v_preds.tolist()]
+        bbox_labels = bbox_labels.tolist()
+        bbox_labels = [[x if x!=-1 else tokenizer.vocab["[MASK]"] for x in t] for t in bbox_labels]
+        bbox_labels_token = [tokenizer.convert_ids_to_tokens(b) for b in bbox_labels]
+        
+        results.append({'prediction':preds_token, 'target':target_token, 'v_prediction':v_preds_token, 'bbox_label':bbox_labels_token, 'batch_pairs':pairs_batch})
+ 
 
     return float(loss), float(batch_score), batch_size, results, others

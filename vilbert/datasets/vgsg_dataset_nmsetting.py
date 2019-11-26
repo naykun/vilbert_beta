@@ -33,7 +33,7 @@ def _converId(img_id):
     return new_id
 
 
-def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/VGSG/VG_split.json'):
+def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/VGSG/VG_split.json', max_length = None):
     split_dict = json.load(open(split_jsonpath,'r'))
     entries = []
     with open(annotations_jsonpath, 'r') as f:
@@ -45,8 +45,50 @@ def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/
         elif split=='val':
             scene_graphs = [scene_graphs[i] for i in split_dict['val']]
         for scene_graph in scene_graphs:
-            if split == 'test':
-                pass
+            if split == 'val':
+                objects = scene_graph['objects']
+                if len(objects)==0:
+                    continue
+                objects2name = {x['object_id']:(x['names'][0], x['synsets'][0] if len(x['synsets'])>0 else -1) for x in objects}
+                # [('obj_name','obj_synset'),...]
+                object_list = list(objects2name.values())
+                bbox_labels = [x['names'][0] if x['names'][0] in obj_set else '[UNK]' for x in objects]
+
+                relationships = scene_graph['relationships']
+                relation_tuples = [(objects2name[x["subject_id"]], (x['predicate'], x['synsets'][0] if len(x['synsets'])>0 else -1), objects2name[x["object_id"]]) for x in relationships]
+                filtered_relation_tuples = []
+                for rel in relation_tuples:
+                    if len(rel[0][0].split())==1 and len(rel[2][0].split())==1 and \
+                        rel[0][0].lower() in obj_set and rel[1][0].lower() in rel_set and rel[2][0].lower() in obj_set:
+                        if rel[1][0]=='in front of':
+                            rel = (rel[0],('front of',rel[1][1]),rel[2])
+                        if rel[1][0]=='on back of':
+                            rel = (rel[0],('back of',rel[1][1]),rel[2])
+                        filtered_relation_tuples.append(rel)
+
+                if len(filtered_relation_tuples) == 0:
+                    continue
+                relation_pair_set = set([(x[0],x[2]) for x in filtered_relation_tuples])
+                filtered_object_list = list(filter(lambda x: x[0] in obj_set, object_list))
+                num_obj = len(filtered_object_list)
+                for i in range(num_obj):
+                    for j in range(num_obj):
+                        if i==j:
+                            continue
+                        candidate_pair = (filtered_object_list[i],filtered_object_list[j])
+                        if candidate_pair not in relation_pair_set:
+                            candidate = (candidate_pair[0],('background',-1),candidate_pair[1])
+                            filtered_relation_tuples.append(candidate)
+
+                if len(filtered_relation_tuples) == 0:
+                    continue
+                assert max_length is not None, 'please pass max length'
+                max_tuple_length = (max_length - 2) // 3
+                random.shuffle(filtered_relation_tuples)
+                for i in range(0, len(filtered_relation_tuples), max_tuple_length):
+                    entries.append(
+                        {"image_id":scene_graph['image_id'], 'relations': filtered_relation_tuples[i:i + max_tuple_length], 'objects': object_list, 'bbox_labels':bbox_labels}
+                    )
             else:
                 objects = scene_graph['objects']
                 if len(objects)==0:
@@ -64,8 +106,12 @@ def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/
                 # filter out phrase relation
                 filtered_relation_tuples = [] 
                 for rel in relation_tuples:
-                    if len(rel[1][0].split())==1 and len(rel[0][0].split())==1 and len(rel[2][0].split())==1 and \
-                        rel[0][0] in obj_set and rel[1][0] in rel_set and rel[2][0] in obj_set:
+                    if len(rel[0][0].split())==1 and len(rel[2][0].split())==1 and \
+                        rel[0][0].lower() in obj_set and rel[1][0].lower() in rel_set and rel[2][0].lower() in obj_set:
+                        if rel[1][0]=='in front of':
+                            rel = (rel[0],('front of',rel[1][1]),rel[2])
+                        if rel[1][0]=='on back of':
+                            rel = (rel[0],('back of',rel[1][1]),rel[2])
                         filtered_relation_tuples.append(rel)
                 
                 if len(filtered_relation_tuples)==0:
@@ -92,7 +138,7 @@ class VGSGNMDataset(Dataset):
     ):
         # All the keys in `self._entries` would be present in `self._image_features_reader`
         if task == 'VGenomeSceneGraph':
-            self._entries = _load_annotationsVGSG_R(annotations_jsonpath, split)
+            self._entries = _load_annotationsVGSG_R(annotations_jsonpath, split,max_length=max_seq_length)
         else:
             assert False
         self._split = split
@@ -153,7 +199,11 @@ class VGSGNMDataset(Dataset):
             tokens = ['[CLS]'] + tokens + ['[SEP]']
             tokens_char = tokens
 
+            # print(tokens_char)
+            # targe = [self._tokenizer.tokenize(x)[0] for x in tokens]
+            # print(targe)
             target = [self._tokenizer.vocab.get(self._tokenizer.tokenize(x)[0], self._tokenizer.vocab['[UNK]']) if i%3==2 else -1 for i, x in enumerate(tokens)]
+            # print(target)
             tokens = [self._tokenizer.vocab.get(self._tokenizer.tokenize(x)[0], self._tokenizer.vocab['[UNK]']) if i%3!=2 else self._tokenizer.vocab.get('[MASK]', self._tokenizer.vocab['[UNK]']) for i, x in enumerate(tokens)]
             
             for i in range(len(tokens)):
@@ -279,9 +329,9 @@ class VGSGNMDataset(Dataset):
             anno_id = entry["image_id"]
 
         co_attention_mask = torch.zeros((1, self._max_region_num, self._max_seq_length))
-        input_ids = input_ids.unsqueeze(1)
-        input_mask = input_mask.unsqueeze(1)
-        segment_ids = segment_ids.unsqueeze(1)
+        input_ids = input_ids
+        input_mask = input_mask
+        segment_ids = segment_ids
         return features, spatials, image_mask, input_ids, target, input_mask, segment_ids, co_attention_mask, anno_id
 
     def __len__(self):

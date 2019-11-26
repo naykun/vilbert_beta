@@ -419,12 +419,12 @@ def main():
                 if i==iter_num-1:
                     continue
                 loss, score, batch_size = ForwardModelsVal(args, task_cfg, device, task_id, batch, model, task_losses)
-                tbLogger.step_val(epochId, float(loss), float(score), task_id, batch_size, 'val')
                 if default_gpu:
+                    tbLogger.step_val(epochId, float(loss), float(score), task_id, batch_size, 'val')
                     sys.stdout.write('%d/%d\r' % (i, len(task_dataloader_val[task_id])))
                     sys.stdout.flush()
-        
-        ave_score = tbLogger.showLossVal()
+        if default_gpu:
+            ave_score = tbLogger.showLossVal()
         if args.lr_scheduler == 'automatic':
             lr_scheduler.step(ave_score)
             logger.info("best average score is %3f" %lr_scheduler.best)

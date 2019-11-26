@@ -7,6 +7,7 @@ from .vgsg_dataset import VGSGDataset
 from .vgsg_novision_dataset import VGSGNoVisDataset
 from .vgsg_dataset_nmsetting import VGSGNMDataset
 from .vgsg_dataset_nmsetting_vpl import VGSGNMVPLDataset
+from .vgsg_dataset_nmsetting_vpl_tkembd import VGSGNMVPLTokenEmbdDataset
 
 
 
@@ -24,7 +25,8 @@ __all__ = [
 		   "VGSGDataset",\
 		   "VGSGNoVisDataset",\
 		   "VGSGNMDataset",\
-		   "VGSGNMVPLDataset"]
+		   "VGSGNMVPLDataset",\
+		   "VGSGNMVPLTokenEmbdDataset"]
 
 DatasetMapTrain = {
 				   'TASK0': VQAClassificationDataset,
@@ -36,7 +38,8 @@ DatasetMapTrain = {
 				   'TASK6': VGSGNoVisDataset,
 				   'TASK7': VGSGDataset,
 				   'TASK8': VGSGNMDataset,
-				   'TASK10': VGSGNMVPLDataset
+				   'TASK10': VGSGNMVPLDataset,
+				   'TASK11': VGSGNMVPLTokenEmbdDataset
 				   }		
 
 DatasetMapEval = {
@@ -49,5 +52,6 @@ DatasetMapEval = {
 				 'TASK6': VGSGNoVisDataset,			   
 				 'TASK7': VGSGDataset,
 				 'TASK8': VGSGNMDataset,
-				 'TASK10': VGSGNMVPLDataset
+				 'TASK10': VGSGNMVPLDataset,
+				 'TASK11': VGSGNMVPLTokenEmbdDataset
 				}

@@ -96,7 +96,7 @@ def main():
         help="save name for training.", 
     )
     parser.add_argument(
-        "--batch_size", default=4, type=int, help="what is the batch size?"
+        "--batch_size", default=64, type=int, help="what is the batch size?"
     )
     parser.add_argument(
         "--tasks", default='', type=str, help="1-2-3... training task separate by -"

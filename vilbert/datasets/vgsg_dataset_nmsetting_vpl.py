@@ -64,8 +64,12 @@ def _load_annotationsVGSG_R(annotations_jsonpath, split, split_jsonpath = 'data/
                 # filter out phrase relation
                 filtered_relation_tuples = [] 
                 for rel in relation_tuples:
-                    if len(rel[1][0].split())==1 and len(rel[0][0].split())==1 and len(rel[2][0].split())==1 and \
-                        rel[0][0] in obj_set and rel[1][0] in rel_set and rel[2][0] in obj_set:
+                    if len(rel[0][0].split())==1 and len(rel[2][0].split())==1 and \
+                        rel[0][0].lower() in obj_set and rel[1][0].lower() in rel_set and rel[2][0].lower() in obj_set:
+                        if rel[1][0]=='in front of':
+                            rel = (rel[0],('front of',rel[1][1]),rel[2])
+                        if rel[1][0]=='on back of':
+                            rel = (rel[0],('back of',rel[1][1]),rel[2])
                         filtered_relation_tuples.append(rel)
                 
                 if len(filtered_relation_tuples)==0:
@@ -164,7 +168,11 @@ class VGSGNMVPLDataset(Dataset):
             input_mask = [1] * len(tokens)
 
             bbox_labels = entry['bbox_labels']
+            print(bbox_labels)
+            bbox_label_t = [self._tokenizer.tokenize(x)[0] for x in bbox_labels]
             bbox_labels = [self._tokenizer.vocab.get(self._tokenizer.tokenize(x)[0], self._tokenizer.vocab['[UNK]']) for x in bbox_labels]
+            print(bbox_label_t)
+            bbox_labels = bbox_labels[:self._max_region_num]
             # input_mask = [1 if i%3==2 else 0 for i in range(len(tokens))]
             # co_attention_mask = [-1 if i%3==2 else 1 for i in range(len(tokens))]
             # co_attention_mask = torch.zeros((self._max_region_num, self._max_seq_length))
@@ -188,7 +196,7 @@ class VGSGNMVPLDataset(Dataset):
             entry['segment_ids'] = segment_ids
             # entry["co_attention_mask"] = co_attention_mask
             entry['target'] = target
-            entry['bbox_label'] = bbox_labels
+            entry['bbox_labels'] = bbox_labels
 
             sys.stdout.write('%d/%d\r' % (count, len(self._entries)))
             sys.stdout.flush()
@@ -275,7 +283,7 @@ class VGSGNMVPLDataset(Dataset):
         input_mask = entry["input_mask"]
         segment_ids = entry["segment_ids"]
         target = entry["target"]
-        bbox_labels = bbox_labels
+        bbox_labels = entry['bbox_labels']
 
         assert_eq(len(input_ids),len(input_mask))
         assert_eq(len(input_mask),len(segment_ids))
@@ -288,9 +296,12 @@ class VGSGNMVPLDataset(Dataset):
             anno_id = entry["image_id"]
 
         co_attention_mask = torch.zeros((1, self._max_region_num, self._max_seq_length))
-        input_ids = input_ids.unsqueeze(1)
-        input_mask = input_mask.unsqueeze(1)
-        segment_ids = segment_ids.unsqueeze(1)
+        input_ids = input_ids
+        input_mask = input_mask
+        segment_ids = segment_ids
+
+        # print(bbox_labels.size())
+
         return features, spatials, image_mask, input_ids, target, input_mask, segment_ids, co_attention_mask, anno_id, bbox_labels
 
     def __len__(self):

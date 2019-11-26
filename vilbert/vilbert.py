@@ -314,12 +314,17 @@ class BertEmbeddings(nn.Module):
         self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, input_ids, token_type_ids=None):
+    def forward(self, input_ids, token_type_ids = None, position_ids = None):
         seq_length = input_ids.size(1)
-        position_ids = torch.arange(
-            seq_length, dtype=torch.long, device=input_ids.device
-        )
-        position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
+        # print(position_ids.shape)
+        position_idss = position_ids
+        if position_ids is None:
+            position_ids = torch.arange(
+                seq_length, dtype=torch.long, device=input_ids.device
+            )
+            position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
+            # print(position_ids.shape)
+        position_ids = position_idss
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
 
@@ -947,14 +952,18 @@ class BertPredictionHeadTransform(nn.Module):
 class BertImgPredictionHeadTransform(nn.Module):
     def __init__(self, config):
         super(BertImgPredictionHeadTransform, self).__init__()
-        self.dense = nn.Linear(config.v_hidden_size, config.v_hidden_size)
+        if hasattr(config,'v_predict_linguistic_label') and config.v_predict_linguistic_label:
+            transform_out_size = config.hidden_size
+        else:
+            transform_out_size = config.v_hidden_size
+        self.dense = nn.Linear(config.v_hidden_size, transform_out_size)
         if isinstance(config.hidden_act, str) or (
             sys.version_info[0] == 2 and isinstance(config.hidden_act, unicode)
         ):
             self.transform_act_fn = ACT2FN[config.hidden_act]
         else:
             self.transform_act_fn = config.v_hidden_act
-        self.LayerNorm = BertLayerNorm(config.v_hidden_size, eps=1e-12)
+        self.LayerNorm = BertLayerNorm(transform_out_size, eps=1e-12)
 
     def forward(self, hidden_states):
         hidden_states = self.dense(hidden_states)
@@ -1027,6 +1036,7 @@ class BertPreTrainingHeads(nn.Module):
         prediction_scores_t = self.predictions(sequence_output_t)
         seq_relationship_score = self.bi_seq_relationship(pooled_output)
         prediction_scores_v = self.imagePredictions(sequence_output_v)
+        # print("BertPreTrainingHeads-prediction_scores_v:",prediction_scores_v.size())
 
         return prediction_scores_t, prediction_scores_v, seq_relationship_score
 
@@ -1039,6 +1049,7 @@ class BertImagePredictionHead(nn.Module):
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
         if hasattr(config,'v_predict_linguistic_label') and config.v_predict_linguistic_label:
+            
             self.decoder = nn.Linear(
                 bert_model_embedding_weights.size(1),
                 bert_model_embedding_weights.size(0),
@@ -1258,11 +1269,14 @@ class BertPreTrainedModel(nn.Module):
                 )
             )
         if len(error_msgs) > 0 and default_gpu:
-            raise RuntimeError(
-                "Error(s) in loading state_dict for {}:\n\t{}".format(
-                    model.__class__.__name__, "\n\t".join(error_msgs)
-                )
-            )
+            # raise RuntimeError(
+            #     "Error(s) in loading state_dict for {}:\n\t{}".format(
+            #         model.__class__.__name__, "\n\t".join(error_msgs)
+            #     )
+            # )
+            print("Error(s) in loading state_dict for {}:\n\t{}".format(
+                     model.__class__.__name__, "\n\t".join(error_msgs)
+             ))
         return model
 
 
@@ -1337,7 +1351,9 @@ class BertModel(BertPreTrainedModel):
         co_attention_mask=None,
         output_all_encoded_layers=False,
         output_all_attention_masks=False,
+        token_position=None
     ):
+        # print("BertModel-input_imgs:",input_imgs.size())
         if attention_mask is None:
             attention_mask = torch.ones_like(input_txt)
         if token_type_ids is None:
@@ -1381,7 +1397,8 @@ class BertModel(BertPreTrainedModel):
             dtype=next(self.parameters()).dtype
         )  # fp16 compatibility
 
-        embedding_output = self.embeddings(input_txt, token_type_ids)
+        embedding_output = self.embeddings(input_txt, token_type_ids, position_ids=token_position)
+        # print(embedding_output)
         v_embedding_output = self.v_embeddings(input_imgs, image_loc)
 
         encoded_layers_t, encoded_layers_v, all_attention_mask = self.encoder(
@@ -1404,6 +1421,7 @@ class BertModel(BertPreTrainedModel):
             encoded_layers_t = encoded_layers_t[-1]
             encoded_layers_v = encoded_layers_v[-1]
 
+        # print("BertModel-encode_layers_v:",encoded_layers_v.size())
         return encoded_layers_t, encoded_layers_v, pooled_output_t, pooled_output_v, all_attention_mask
 
 
@@ -1539,6 +1557,7 @@ class VILBertForVLTasks(BertPreTrainedModel):
         image_attention_mask=None,
         co_attention_mask=None,
         output_all_encoded_layers=False,
+        token_position = None
     ):
         sequence_output_t, sequence_output_v, pooled_output_t, pooled_output_v, _ = self.bert(
             input_txt,
@@ -1549,6 +1568,7 @@ class VILBertForVLTasks(BertPreTrainedModel):
             image_attention_mask,
             co_attention_mask,
             output_all_encoded_layers=False,
+            token_position=token_position
         )
 
         vil_prediction = 0
